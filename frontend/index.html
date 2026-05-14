@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SCADA/ICS Қауіпсіздік Басқару Жүйесі</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#070b14;--bg2:#0d1322;--bg3:#111827;
+  --card:rgba(255,255,255,.035);--card-hov:rgba(255,255,255,.055);
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
+  --cyan:#22d3ee;--cyan-d:rgba(34,211,238,.12);--cyan-g:rgba(34,211,238,.25);
+  --red:#f87171;--red-d:rgba(248,113,113,.12);
+  --amber:#fbbf24;--amber-d:rgba(251,191,36,.12);
+  --green:#4ade80;--green-d:rgba(74,222,128,.12);
+  --blue:#60a5fa;--blue-d:rgba(96,165,250,.12);
+  --purple:#a78bfa;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#475569;
+  --sw:64px;
+  --fh:'Syne',sans-serif;--fb:'DM Sans',sans-serif;--fm:'JetBrains Mono',monospace;
+}
+html{height:100%}
+body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--fb);font-size:14px;line-height:1.6;display:flex;overflow-x:hidden}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* SIDEBAR */
+#sidebar{width:var(--sw);min-height:100vh;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:20px 0;position:fixed;top:0;left:0;z-index:100;gap:4px}
+.logo{width:38px;height:38px;background:var(--cyan-d);border:1px solid var(--cyan-g);border-radius:10px;display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-family:var(--fh);font-size:14px;font-weight:800;color:var(--cyan);letter-spacing:-1px}
+.ni{width:40px;height:40px;border-radius:10px;border:none;background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:all .2s;position:relative}
+.ni:hover{background:var(--card);color:var(--text2)}
+.ni.active{background:var(--cyan-d);color:var(--cyan);border:1px solid var(--cyan-g)}
+.ni svg{width:18px;height:18px;stroke-width:1.6}
+.tt{position:absolute;left:52px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);padding:5px 10px;border-radius:7px;font-size:11px;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:200}
+.ni:hover .tt{opacity:1}
+.ssp{flex:1}.sdot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);margin-bottom:8px}
+.sver{font-size:10px;color:var(--text3);font-family:var(--fm)}
+
+/* MAIN */
+#main{margin-left:var(--sw);flex:1;display:flex;flex-direction:column;min-height:100vh}
+
+/* TOPBAR */
+#topbar{height:60px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 28px;gap:16px;position:sticky;top:0;z-index:50;background:rgba(7,11,20,.88);backdrop-filter:blur(12px)}
+.tb-title{font-family:var(--fh);font-size:15px;font-weight:700;letter-spacing:-.3px}
+.tb-sub{font-size:11px;color:var(--text3);font-family:var(--fm)}
+.tsp{flex:1}
+.spill{display:flex;align-items:center;gap:6px;background:var(--green-d);border:1px solid rgba(74,222,128,.2);padding:5px 12px;border-radius:100px;font-size:11px;color:var(--green);font-family:var(--fm)}
+.pulse{width:6px;height:6px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.tbadge{font-size:11px;color:var(--text3);font-family:var(--fm);padding:5px 10px;border:1px solid var(--border);border-radius:6px}
+
+/* CONTENT */
+#content{padding:28px;flex:1}
+.view{display:none;animation:fi .3s ease}.view.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* SECTION HEAD */
+.sh{margin-bottom:22px}.sh h1{font-family:var(--fh);font-size:22px;font-weight:700;letter-spacing:-.5px;margin-bottom:4px}.sh p{font-size:13px;color:var(--text2)}
+
+/* METRIC GRID */
+.mg{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px}
+.mc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;transition:border-color .2s}
+.mc:hover{border-color:var(--border2)}
+.mv{font-family:var(--fh);font-size:26px;font-weight:700;line-height:1;margin-bottom:5px}
+.ml{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.ms{font-size:10px;color:var(--text3);margin-top:3px}
+
+/* CARD */
+.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:20px 24px;transition:border-color .2s;margin-bottom:14px}
+.card:hover{border-color:var(--border2)}
+.ctitle{font-family:var(--fh);font-size:14px;font-weight:600;margin-bottom:3px}
+.csub{font-size:12px;color:var(--text2);margin-bottom:14px}
+
+/* GRID */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+
+/* BADGES */
+.b{display:inline-block;padding:3px 10px;border-radius:100px;font-size:11px;font-weight:500;font-family:var(--fm)}
+.bc{background:var(--red-d);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.bh{background:var(--amber-d);color:var(--amber);border:1px solid rgba(251,191,36,.2)}
+.bm{background:var(--blue-d);color:var(--blue);border:1px solid rgba(96,165,250,.2)}
+.bl{background:var(--green-d);color:var(--green);border:1px solid rgba(74,222,128,.2)}
+.bd{background:var(--green-d);color:var(--green);border:1px solid rgba(74,222,128,.2)}
+.bp{background:var(--amber-d);color:var(--amber);border:1px solid rgba(251,191,36,.2)}
+.bf{background:var(--red-d);color:var(--red);border:1px solid rgba(248,113,113,.2)}
+.bbest{background:var(--cyan-d);color:var(--cyan);border:1px solid var(--cyan-g)}
+
+/* TABLE */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead th{text-align:left;padding:9px 12px;background:rgba(255,255,255,.03);color:var(--text2);font-size:10px;text-transform:uppercase;letter-spacing:.5px;font-weight:500;border-bottom:1px solid var(--border)}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover td{background:var(--card-hov)}
+tbody tr.row-best td{background:rgba(34,211,238,.04)}
+tbody tr.row-attack td{background:rgba(248,113,113,.04)}
+.nc{font-family:var(--fm);text-align:center}
+
+/* RLI GRID */
+.rg{display:grid;grid-template-columns:28px repeat(4,1fr);gap:3px;max-width:320px}
+.rh{font-size:10px;color:var(--text3);text-align:center;padding:2px 0;font-family:var(--fm)}
+.rc{border-radius:8px;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--fm)}
+
+/* VULN */
+.vc{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px 18px;transition:all .2s}
+.vc:hover{border-color:var(--border2);transform:translateY(-2px)}
+.vn{font-family:var(--fh);font-size:13px;font-weight:600;margin:8px 0 4px}
+.vd{font-size:11px;color:var(--text2);margin-bottom:8px;line-height:1.5}
+.vi{font-size:10px;color:var(--text3);border-top:1px solid var(--border);padding-top:8px;margin-top:8px}
+
+/* ARCH */
+.alv{border:1px solid var(--border);border-radius:16px;padding:16px 20px;margin-bottom:6px}
+.alt{font-family:var(--fh);font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.adevs{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:8px}
+.adev{background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:5px 10px;font-size:11px;color:var(--text2)}
+.aconn{text-align:center;color:var(--text3);font-size:11px;padding:5px 0;display:flex;align-items:center;justify-content:center;gap:10px}
+.aconn span{flex:1;height:1px;background:var(--border)}
+
+/* AUDIT */
+.pbar{height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;margin:6px 0 18px}
+.pfill{height:100%;border-radius:3px;transition:width 1s ease}
+.ai{display:flex;align-items:flex-start;gap:10px;padding:11px 0;border-bottom:1px solid var(--border)}
+.ai:last-child{border-bottom:none}
+.ado{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;margin-top:1px}
+.ado.done{background:var(--green-d);color:var(--green)}
+.ado.partial{background:var(--amber-d);color:var(--amber)}
+.ado.fail{background:var(--red-d);color:var(--red)}
+.an{font-size:12px;font-weight:500;margin-bottom:2px}
+.ad{font-size:11px;color:var(--text2)}
+.ar{font-size:10px;color:var(--red);margin-top:3px}
+.ast{font-size:10px;color:var(--text3);font-family:var(--fm)}
+
+/* ML DUAL MODE */
+.mode-tabs{display:flex;gap:0;margin-bottom:20px;background:var(--bg3);border-radius:12px;padding:4px}
+.mtab{flex:1;padding:10px 20px;border:none;background:transparent;cursor:pointer;color:var(--text2);font-family:var(--fb);font-size:13px;font-weight:500;border-radius:9px;transition:all .2s}
+.mtab.active{background:var(--card-hov);color:var(--text);border:1px solid var(--border2)}
+.mview{display:none}.mview.active{display:block}
+
+/* SCENARIO TABLE */
+.sc-row{cursor:pointer;transition:background .15s}
+.sc-row:hover td{background:var(--card-hov)}
+.risk-bar-wrap{width:80px;height:6px;background:var(--bg3);border-radius:3px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
+.risk-bar-fill{height:100%;border-radius:3px;transition:width .8s ease}
+
+/* UPLOAD ZONE */
+.upload-zone{border:2px dashed var(--border2);border-radius:16px;padding:40px 20px;text-align:center;transition:all .3s;cursor:pointer;background:var(--card)}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--cyan);background:var(--cyan-d)}
+.upload-icon{font-size:36px;margin-bottom:12px}
+.upload-title{font-family:var(--fh);font-size:16px;font-weight:600;margin-bottom:6px}
+.upload-sub{font-size:12px;color:var(--text2)}
+#fileInput{display:none}
+
+/* RESULT TABLE */
+.result-wrap{margin-top:20px;animation:fi .4s ease}
+.res-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.rs{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;text-align:center}
+.rsv{font-family:var(--fh);font-size:24px;font-weight:700}
+.rsl{font-size:11px;color:var(--text2);margin-top:3px}
+
+/* PROGRESS */
+#analyzeProgress{display:none;margin:16px 0}
+.prog-track{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden}
+.prog-bar{height:100%;background:var(--cyan);border-radius:2px;width:0;transition:width .3s}
+.prog-label{font-size:11px;color:var(--text2);font-family:var(--fm);margin-top:6px;text-align:center}
+
+/* LEGEND */
+.leg{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--text2);margin-bottom:10px}
+.leg span{display:flex;align-items:center;gap:5px}
+.lsq{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* LOADER */
+#loader{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:14px;transition:opacity .4s}
+.spin{width:34px;height:34px;border:2px solid var(--border);border-top-color:var(--cyan);border-radius:50%;animation:sp .8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.lt{font-family:var(--fm);font-size:12px;color:var(--text2)}.ls{font-size:11px;color:var(--text3)}
+
+/* DETAIL ROW */
+.det{display:none;padding:10px 12px;background:rgba(0,0,0,.3);font-size:11px;color:var(--text2);line-height:1.7}
+.det.open{display:block}
+.mit{list-style:none;display:flex;flex-direction:column;gap:3px;margin-top:5px}
+.mit li::before{content:"→ ";color:var(--cyan)}
+
+/* CHART WRAP */
+.cw{position:relative}
+
+@media(max-width:768px){.g2{grid-template-columns:1fr}#content{padding:14px}.mg{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="spin"></div>
+  <div class="lt">SCADA/ICS Қауіпсіздік Басқару Жүйесі</div>
+  <div class="ls">Жүйе жүктелуде...</div>
+</div>
+
+<!-- SIDEBAR -->
+<nav id="sidebar">
+  <div class="logo">SC</div>
+  <button class="ni active" onclick="sw(this,'dashboard')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+    <span class="tt">Басты бет</span>
+  </button>
+  <button class="ni" onclick="sw(this,'rli')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 3h18v18H3z"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
+    <span class="tt">RLI Матрица</span>
+  </button>
+  <button class="ni" onclick="sw(this,'vuln')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4M12 16h.01"/></svg>
+    <span class="tt">Осалдықтар</span>
+  </button>
+  <button class="ni" onclick="sw(this,'arch')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M12 7v5M12 12l-5 5M12 12l5 5"/></svg>
+    <span class="tt">Қауіп картасы</span>
+  </button>
+  <button class="ni" onclick="sw(this,'ml')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 7l3 3 2-2 3 3"/></svg>
+    <span class="tt">ML Детектор</span>
+  </button>
+  <button class="ni" onclick="sw(this,'audit')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+    <span class="tt">ИҚ Аудиті</span>
+  </button>
+  <div class="ssp"></div>
+  <div class="sdot"></div>
+  <div class="sver">v1.0</div>
+</nav>
+
+<!-- MAIN -->
+<div id="main">
+  <header id="topbar">
+    <div>
+      <div class="tb-title">SCADA/ICS Қауіпсіздік Басқару Жүйесі</div>
+      <div class="tb-sub">Газ тасымалдау кәсіпорны · Диссертация Әбсаматов Ә.Ә. 2025–2026</div>
+    </div>
+    <div class="tsp"></div>
+    <div class="spill"><div class="pulse"></div>Жүйе белсенді</div>
+    <div class="tbadge" id="clock">--:--:--</div>
+  </header>
+
+  <div id="content">
+
+    <!-- ══ БАСТЫ БЕТ ══════════════════════════════════════════════════════ -->
+    <div class="view active" id="view-dashboard">
+      <div class="sh"><h1>Басқару тақтасы</h1><p>Жалпы шолу · SCADA/ICS инфрақұрылымы · Газ тасымалдау кәсіпорны</p></div>
+      <div class="mg" id="dashMetrics"></div>
+      <div class="g2">
+        <div class="card">
+          <div class="ctitle">Тәуекел деңгейлерінің үлестірімі (RLI)</div>
+          <div class="csub">8 кибершабуыл сценарийі бойынша бағалау</div>
+          <div class="leg"><span><span class="lsq" style="background:#f87171"></span>Өте жоғары</span><span><span class="lsq" style="background:#fbbf24"></span>Жоғары</span><span><span class="lsq" style="background:#60a5fa"></span>Орташа</span></div>
+          <div class="cw" style="height:185px"><canvas id="cRisk" role="img" aria-label="Тәуекел деңгейлері: 1 өте жоғары, 4 жоғары, 3 орташа">1 өте жоғары, 4 жоғары, 3 орташа</canvas></div>
+        </div>
+        <div class="card">
+          <div class="ctitle">ML модельдер салыстыруы</div>
+          <div class="csub">F1-score және Recall көрсеткіштері · Ең жақсы модель бөлектелген</div>
+          <div class="leg"><span><span class="lsq" style="background:#4ade80"></span>F1</span><span><span class="lsq" style="background:#fbbf24"></span>Recall</span></div>
+          <div class="cw" style="height:185px"><canvas id="cMLd" role="img" aria-label="ML модельдер F1 және Recall">Ең жақсы: RF bs+tuned F1=0.541</canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Ең қауіпті 3 шабуыл сценарийі</div>
+        <div class="csub">Жолды басу арқылы қорғаныс шараларын қараңыз</div>
+        <div class="tw"><table id="dashTbl"><thead><tr><th>Шабуыл сценарийі</th><th>Нысана</th><th class="nc">L</th><th class="nc">I</th><th class="nc">R</th><th>Деңгей</th></tr></thead><tbody id="dashBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ RLI МАТРИЦА ════════════════════════════════════════════════════ -->
+    <div class="view" id="view-rli">
+      <div class="sh"><h1>RLI Тәуекел Матрицасы</h1><p>Тәуекел = Ықтималдық × Салдар (R = L × I) · Диссертация, 2-кесте</p></div>
+      <div class="g2" style="margin-bottom:16px">
+        <div class="card">
+          <div class="ctitle">L × I жылу картасы</div>
+          <div class="csub">● = шабуыл сценарийі · Жасыл→Сары→Қызыл = тәуекел өседі</div>
+          <div class="rg" id="rliGrid"></div>
+          <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:7px">
+            <span class="b bc">R ≥ 13 — Өте жоғары</span>
+            <span class="b bh">R 9–12 — Жоғары</span>
+            <span class="b bm">R 5–8 — Орташа</span>
+            <span class="b bl">R ≤ 4 — Төмен</span>
+          </div>
+        </div>
+        <div class="card">
+          <div class="ctitle">Бағалау шкаласы</div>
+          <div class="csub">Ықтималдық (L) және Салдар (I) деңгейлері</div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Ықтималдық (L)</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;margin-bottom:14px">
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bc">4</span><span style="color:var(--text2)">Өте жоғары — шабуыл құралдары кеңінен қолжетімді</span></div>
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bh">3</span><span style="color:var(--text2)">Жоғары — белгілі осалдықтар болса іске асады</span></div>
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bm">2</span><span style="color:var(--text2)">Орташа — арнайы шарттар қажет</span></div>
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bl">1</span><span style="color:var(--text2)">Төмен — сирек кездесетін сценарий</span></div>
+          </div>
+          <div style="font-size:11px;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px">Салдар (I)</div>
+          <div style="display:flex;flex-direction:column;gap:5px;font-size:12px">
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bc">4</span><span style="color:var(--text2)">Авария, адамдарға/экологияға қауіп, ірі шығын</span></div>
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bh">3</span><span style="color:var(--text2)">Техпроцесс тоқтауы, жабдық істен шығуы</span></div>
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bm">2</span><span style="color:var(--text2)">Уақытша іркіліс, жоспардан тыс шығындар</span></div>
+            <div style="display:flex;gap:8px;align-items:center"><span class="b bl">1</span><span style="color:var(--text2)">Жергілікті әсер, жылдам қалпына келу</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="ctitle">Кибершабуыл сценарийлерінің толық кестесі</div>
+        <div class="csub">Жолды басу → қорғаныс шараларын қараңыз</div>
+        <div class="tw"><table><thead><tr><th>Сценарий</th><th>Нысана</th><th class="nc">L</th><th class="nc">I</th><th class="nc">R</th><th>Деңгей</th><th>Салдары</th></tr></thead><tbody id="rliBody"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- ══ ОСАЛДЫҚТАР ═════════════════════════════════════════════════════ -->
+    <div class="view" id="view-vuln">
+      <div class="sh"><h1>Осалдықтар классификаторы</h1><p>Деректерді беру арналарының осалдықтарын логикалық топтастыру · 1-кесте</p></div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="ctitle">Топтар бойынша осалдық деңгейі</div>
+        <div class="csub">Радарлық диаграмма · 1–4 шкала (4 = критикалық)</div>
+        <div class="cw" style="height:220px"><canvas id="cVuln" role="img" aria-label="8 топ бойынша осалдық деңгейі">8 топ: Протокол 4, Желі 4, Сымсыз 3, Аутентификация 3, Legacy 3, Конфигурация 2, Мониторинг 2, Адам факторы 2</canvas></div>
+      </div>
+      <div class="g3" id="vulnGrid"></div>
+    </div>
+
+    <!-- ══ ҚАУІП КАРТАСЫ ══════════════════════════════════════════════════ -->
+    <div class="view" id="view-arch">
+      <div class="sh"><h1>Қауіп картасы — SCADA/ICS архитектурасы</h1><p>Үш деңгейлі инфрақұрылым · Кибершабуыл векторлары деңгей бойынша</p></div>
+      <div class="g2">
+        <div id="archLevels"></div>
+        <div>
+          <div class="card" style="margin-bottom:14px">
+            <div class="ctitle">Деректерді беру арналары</div>
+            <div class="csub">Байланыс түрі бойынша осалдықтар</div>
+            <div style="margin-bottom:14px">
+              <div style="font-size:12px;font-weight:500;margin-bottom:7px">🔌 Сымды арналар (Талшықты-оптика / Ethernet)</div>
+              <div style="font-size:11px;color:var(--text2);line-height:1.8">✓ Жоғары өткізу қабілеті<br>✓ Электромагниттік кедергілерге төзімді<br>⚠ OT/IT қосылу нүктелерінде MITM қаупі</div>
+            </div>
+            <div style="border-top:1px solid var(--border);padding-top:12px">
+              <div style="font-size:12px;font-weight:500;margin-bottom:7px">📡 Сымсыз арналар (4G/5G / Радио / Спутник)</div>
+              <div style="font-size:11px;color:var(--text2);line-height:1.8">✓ Алыс объектілер үшін икемді<br>⚠ Ашық ортада сигналды ұстап алу<br>⚠ Сигналды блоктау (jamming)</div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="ctitle">Протокол осалдықтары</div>
+            <div class="csub">Өнеркәсіптік протоколдардың қауіп деңгейі</div>
+            <div class="cw" style="height:170px"><canvas id="cProto" role="img" aria-label="Протокол осалдықтары гистограммасы">Modbus 95, DNP3 90, OPC DA 70, IEC104 70, Profibus 45, HART 40</canvas></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ML ДЕТЕКТОР ════════════════════════════════════════════════════ -->
+    <div class="view" id="view-ml">
+      <div class="sh"><h1>ML Детектор — Кибершабуыл анықтау</h1><p>Бинарлық классификация: қалыпты (0) / шабуыл (1) · Диссертация 3–6 кестелер</p></div>
+
+      <div class="mode-tabs">
+        <button class="mtab active" onclick="setMode('auto',this)">🤖 Автоматты талдау</button>
+        <button class="mtab" onclick="setMode('manual',this)">📂 Деректерді қолмен жүктеу</button>
+      </div>
+
+      <!-- ─── АВТОМАТТЫ РЕЖИМ ─────────────────────────────────────────── -->
+      <div class="mview active" id="mode-auto">
+        <div class="mg" id="mlMetrics"></div>
+        <div class="card" style="margin-bottom:14px">
+          <div class="ctitle">9 ML модельдің салыстырмалы талдауы</div>
+          <div class="csub">Recall маңызды: шабуылды жіберіп алу жалған дабылдан қауіпті · ★ = ең жақсы модель</div>
+          <div class="leg"><span><span class="lsq" style="background:#fbbf24"></span>Recall</span><span><span class="lsq" style="background:#4ade80"></span>F1-score</span><span><span class="lsq" style="background:#a78bfa"></span>ROC-AUC (сызық)</span></div>
+          <div class="cw" style="height:270px"><canvas id="cMLComp" role="img" aria-label="9 ML модель Recall, F1, AUC салыстыруы">Ең жақсы: RF bs+tuned Recall=0.665 F1=0.541 AUC=0.838</canvas></div>
+        </div>
+        <div class="card" style="margin-bottom:14px">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+            <div>
+              <div class="ctitle">Алдын ала жүктелген сынақ сценарийлері</div>
+              <div class="csub" style="margin-bottom:0">8 сценарий · Қалыпты және шабуыл жағдайлары</div>
+            </div>
+            <button onclick="runAutoAnalysis()" style="padding:10px 20px;background:var(--cyan-d);border:1px solid var(--cyan-g);color:var(--cyan);border-radius:10px;cursor:pointer;font-family:var(--fb);font-size:13px;font-weight:500">
+              ▶ Талдауды бастау
+            </button>
+          </div>
+          <div class="tw"><table id="autoTbl">
+            <thead><tr><th>#</th><th>Сценарий атауы</th><th>Сипаттама</th><th class="nc">Қысым</th><th class="nc">Modbus</th><th class="nc">Жазу жиілігі</th><th>Тәуекел</th><th>Нәтиже</th></tr></thead>
+            <tbody id="autoBody"></tbody>
+          </table></div>
+        </div>
+        <div class="card">
+          <div class="ctitle">ML модельдерінің толық метрика кестесі</div>
+          <div class="csub">★ = өндірістік ортаға ұсынылатын ең жақсы конфигурация</div>
+          <div class="tw"><table><thead><tr><th>Модель</th><th>Түрі</th><th class="nc">Acc</th><th class="nc">Prec</th><th class="nc">Recall</th><th class="nc">F1</th><th class="nc">AUC</th></tr></thead><tbody id="mlBody"></tbody></table></div>
+        </div>
+      </div>
+
+      <!-- ─── ҚОЛМЕН ЖҮКТЕУ РЕЖИМІ ───────────────────────────────────── -->
+      <div class="mview" id="mode-manual">
+        <div class="g2" style="margin-bottom:16px">
+          <div class="card">
+            <div class="ctitle">📋 CSV үлгісін жүктеу</div>
+            <div class="csub">Деректер форматын үлгіден тексеріп алыңыз</div>
+            <div style="font-size:11px;color:var(--text2);margin-bottom:14px;line-height:1.7">
+              CSV файлы <strong style="color:var(--text)">20 баған</strong> болуы тиіс:<br>
+              pressure_bar, flow_rate_m3h, temperature_c, valve_position_pct, rpm_compressor,<br>
+              pkt_size_bytes, pkt_rate_pps, inter_arrival_ms, payload_entropy, tcp_flags_numeric,<br>
+              modbus_func_code, dnp3_app_ctrl, opc_tag_count, cmd_response_delta_ms, reg_write_freq,<br>
+              hour_of_day, src_ip_internal, dst_port_industrial, session_duration_s, failed_auth_count
+            </div>
+            <button onclick="downloadTemplate()" style="width:100%;padding:10px;background:var(--card-hov);border:1px solid var(--border2);color:var(--text);border-radius:10px;cursor:pointer;font-family:var(--fb);font-size:13px">
+              ⬇ test_samples.csv үлгісін жүктеу (30 жол)
+            </button>
+          </div>
+          <div class="card">
+            <div class="ctitle">⚙️ ML Модель параметрлері</div>
+            <div class="csub">Белсенді модель: RF balanced_subsample + tuned</div>
+            <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+              <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">Шешім шегі (Threshold)</span><span style="font-family:var(--fm);color:var(--cyan)">0.38</span></div>
+              <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">F1-score</span><span style="font-family:var(--fm);color:var(--green)">0.541</span></div>
+              <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">ROC-AUC</span><span style="font-family:var(--fm);color:var(--purple)">0.838</span></div>
+              <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--text2)">Recall</span><span style="font-family:var(--fm);color:var(--amber)">0.665</span></div>
+              <div style="display:flex;justify-content:space-between;padding:7px 0"><span style="color:var(--text2)">Белгілер саны</span><span style="font-family:var(--fm)">20</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()" ondragover="ev.preventDefault();this.classList.add('drag')" ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)">
+          <div class="upload-icon">📁</div>
+          <div class="upload-title">CSV файлын жүктеу</div>
+          <div class="upload-sub">Файлды осы жерге сүйреп тастаңыз немесе басыңыз</div>
+          <div style="margin-top:10px;font-size:11px;color:var(--text3)">Қолдау: .csv · Максималды: 10 МБ</div>
+        </div>
+        <input type="file" id="fileInput" accept=".csv" onchange="handleFile(this.files[0])"/>
+
+        <div id="analyzeProgress">
+          <div class="prog-track"><div class="prog-bar" id="progBar"></div></div>
+          <div class="prog-label" id="progLabel">Деректер өңделуде...</div>
+        </div>
+
+        <div id="manualResult" style="display:none">
+          <div class="res-summary" id="resSummary"></div>
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div>
+                <div class="ctitle">Талдау нәтижелері</div>
+                <div class="csub" style="margin-bottom:0" id="resSubtitle"></div>
+              </div>
+              <button onclick="clearResults()" style="padding:7px 14px;background:transparent;border:1px solid var(--border2);color:var(--text2);border-radius:8px;cursor:pointer;font-size:12px;font-family:var(--fb)">Тазалау</button>
+            </div>
+            <div class="tw">
+              <table><thead><tr><th>#</th><th>Нәтиже</th><th class="nc">Ықтималдық</th><th>Тәуекел деңгейі</th><th class="nc">Modbus</th><th class="nc">Pkt/s</th><th class="nc">Жазу жиілігі</th><th class="nc">Сыртқы IP</th><th class="nc">Auth қатесі</th></tr></thead>
+              <tbody id="manualBody"></tbody></table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ ИҚ АУДИТІ ══════════════════════════════════════════════════════ -->
+    <div class="view" id="view-audit">
+      <div class="sh"><h1>Ақпараттық қауіпсіздік аудиті</h1><p>Сәйкестік бақылауы · ISO/IEC 27001 · IEC 62443 · NIST SP 800-82</p></div>
+      <div class="mg" id="auditMetrics"></div>
+      <div class="pbar"><div class="pfill" id="auditProg" style="background:var(--green)"></div></div>
+      <div id="auditSections"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════════════════
+   ДЕРЕКТЕР
+═══════════════════════════════════════════════════════════════════════════ */
+const THREATS=[
+  {id:1,name:"PLC жалған командалар (Command Injection)",en:"PLC Command Injection",L:4,I:4,R:16,lvl:"critical",target:"PLC / Далалық деңгей",cons:"Қысым/ағынның қауіпті өзгеруі, арматура істен шығуы, авариялық тоқтау, экологиялық зиян",mits:["Желіні сегменттеу, PLC-ге рұқсатты шектеу","Командалық пакеттерді аутентификациялау (DNP3-SA)","ML-IDS арқылы аномалды командаларды бақылау","Рұқсат етілген командалардың ақ тізімі (Whitelist)"]},
+  {id:2,name:"PLC прошивкасын алмастыру (Firmware Tampering)",en:"Firmware Tampering",L:3,I:4,R:12,lvl:"high",target:"PLC контроллерлер",cons:"Ұзақ мерзімді жасырын әсер, қорғаныс алгоритмдерін айналып өту, жабдық тозуы",mits:["Прошивка тұтастығын тексеру (hash/цифрлық қолтаңба)","PLC-ге физикалық және желілік қол жеткізуді шектеу","Прошивка нұсқаларын орталықтандырылған басқару"]},
+  {id:3,name:"Replay / Spoofing (Modbus/DNP3/OPC)",en:"Protocol Replay/Spoofing",L:3,I:3,R:9,lvl:"high",target:"Өнеркәсіптік протоколдар",cons:"Атқарушы механизмдердің жалған қозғалысы, газ есебін бұзу, жүйенің қате күйі",mits:["Пакеттерге уақыт белгілері мен sequence numbers қосу","DNP3 Secure Authentication v5/v6 (DNP3-SA)","Аномалды трафик паттерндерін бақылау"]},
+  {id:4,name:"SCADA/HMI-ге рұқсатсыз кіру",en:"Unauthorized SCADA Access",L:3,I:3,R:9,lvl:"high",target:"SCADA серверлер / HMI",cons:"Басқаруды бұзу, оператордың қате шешімі, жүйе бақылауынан айрылу",mits:["Көп факторлы аутентификация (MFA)","Рөлдік қол жеткізу моделі (RBAC)","VPN + Zero-Trust Architecture"]},
+  {id:5,name:"MITM — телеметриялық деректерді бұрмалау",en:"MITM Data Manipulation",L:3,I:3,R:9,lvl:"high",target:"Телеметрия беру арналары",cons:"Қате диагностика, ақаулықты кеш анықтау, жаңылыс басқару шешімдері",mits:["Арналарды шифрлау (TLS 1.3 / IPSec)","Пакет тұтастығын тексеру (HMAC)","OT/IT желілерін сегменттеу (DMZ)"]},
+  {id:6,name:"Деректерді тыңдау (Eavesdropping)",en:"Eavesdropping",L:4,I:2,R:8,lvl:"medium",target:"Барлық байланыс арналары",cons:"Технологиялық деректердің ашылуы, күрделі шабуылдарға дайындық",mits:["Барлық байланыс арналарын шифрлау","Сымсыз интерфейстерді қорғау (WPA3)","Желіде рұқсатсыз құрылғыларды анықтау"]},
+  {id:7,name:"DoS/DDoS — диспетчерлік сегментке шабуыл",en:"DoS/DDoS SCADA",L:3,I:2,R:6,lvl:"medium",target:"Диспетчерлік / байланыс сегменті",cons:"Мониторинг тоқтауы, оператор реакциясының кешігуі, уақытша басқару жоғалуы",mits:["Өнеркәсіптік коммутаторларда QoS / Rate limiting","Резервтік арналар (автоматты ауысу)","Redundant SCADA (Hot Standby)"]},
+  {id:8,name:"Ransomware (инженерлік станциялар)",en:"Ransomware",L:2,I:3,R:6,lvl:"medium",target:"Инженерлік станциялар / архив серверлер",cons:"Жедел деректерге қол жеткізуді жоғалту, қалпына келтіру уақыты, қаржылық шығын",mits:["Application Whitelisting","Инженерлік станцияларды оқшаулау","Резервтік көшіру (3-2-1 ереже)","Patch management саясаты"]},
+];
+
+const VULNS=[
+  {id:1,name:"Протокол осалдықтары",desc:"Modbus, DNP3, OPC — шифрлау мен аутентификация механизмдерінсіз жасалған",priority:"Критикалық",ps:4,prots:["Modbus/TCP","DNP3","OPC DA/UA","IEC 104"],impact:"Командаларды ұстап алу, жалған деректер енгізу, replay-шабуылдар"},
+  {id:2,name:"Желілік осалдықтар",desc:"SCADA/OT және IT желілерінің жеткіліксіз сегментациясы",priority:"Критикалық",ps:4,prots:["Ethernet","TCP/IP"],impact:"Рұқсатсыз кіру, шабуылшының желіде таралуы"},
+  {id:3,name:"Сымсыз арна осалдықтары",desc:"Радио, 4G/5G, спутниктік байланыс ашық радиоортада жұмыс істейді",priority:"Жоғары",ps:3,prots:["GSM/LTE/5G","Wi-Fi 802.11","Satellite","WirelessHART"],impact:"Сигналды ұстап алу, байланысты блоктау, басқарудың тұрақсыздығы"},
+  {id:4,name:"Аутентификация және қол жеткізу",desc:"Ескірген немесе стандартты (default) тіркелгі деректерін қолдану",priority:"Жоғары",ps:3,prots:null,impact:"PLC/SCADA құрылғыларын рұқсатсыз толық бақылау"},
+  {id:5,name:"Аппараттық осалдықтар (Legacy)",desc:"Қауіпсіздік жаңартулары шектеулі ескі PLC/RTU жабдықтары",priority:"Жоғары",ps:3,prots:null,impact:"Белгілі CVE-лерді пайдалану, жабдықты ауыстырмай жабу мүмкін емес"},
+  {id:6,name:"Конфигурациялық осалдықтар",desc:"Желілік құрылғылар мен контроллерлердің дұрыс бапталмауы",priority:"Орташа",ps:2,prots:null,impact:"DoS-шабуылдар, шабуыл беті кеңеюі"},
+  {id:7,name:"Мониторингтің жеткіліксіздігі",desc:"Деректерді беру арналарының күйін үздіксіз бақылау мүмкіндігінің болмауы",priority:"Орташа",ps:2,prots:null,impact:"Шабуылдарды кеш анықтау, ауқымды каскадтық салдар"},
+  {id:8,name:"Адам факторы",desc:"Қызметкерлердің қателіктері, ИҚ регламенттерін сақтамау",priority:"Орташа",ps:2,prots:null,impact:"Қате конфигурация, деректердің кездейсоқ немесе қасақана ашылуы"},
+];
+
+const ML_MODELS=[
+  {id:"lr",     name:"Logistic Regression",           cat:"Supervised",   acc:0.815,prec:0.984,rec:0.157,f1:0.271,auc:0.710,best:false,note:"Жоғары Accuracy, өте төмен Recall — шабуылдардың басым бөлігі жіберіледі"},
+  {id:"rf_base",name:"Random Forest (base)",           cat:"Supervised",   acc:0.846,prec:1.000,rec:0.296,f1:0.457,auc:0.849,best:false,note:"Тамаша AUC, дефолтты конфигурация теңгерімсіз деректер үшін оңтайлы емес"},
+  {id:"if",     name:"Isolation Forest",               cat:"Unsupervised", acc:0.738,prec:0.307,rec:0.159,f1:0.209,auc:null, best:false,note:"Таңбаланған деректерсіз қосымша сүзгі ретінде қолданылады"},
+  {id:"lr_bal", name:"LR balanced",                   cat:"Supervised",   acc:0.617,prec:0.291,rec:0.524,f1:0.374,auc:null, best:false,note:"Теңгерімдеу Recall-ды жақсартты, Precision төмендеді"},
+  {id:"lr_bt",  name:"LR balanced + tuned",           cat:"Supervised",   acc:0.489,prec:0.296,rec:0.968,f1:0.453,auc:null, best:false,note:"Максималды Recall, бірақ жалған дабылдар өте көп"},
+  {id:"rf_bal", name:"RF balanced",                   cat:"Supervised",   acc:0.630,prec:0.363,rec:0.916,f1:0.520,auc:0.831,best:false,note:"Жақсы Recall, AUC қолайлы деңгейде"},
+  {id:"rf_bt",  name:"RF balanced + tuned",           cat:"Supervised",   acc:0.752,prec:0.454,rec:0.659,f1:0.537,auc:0.838,best:false,note:"Барлық метрика бойынша теңгерімді нәтиже"},
+  {id:"rf_bs",  name:"RF balanced_sub + tuned ★",    cat:"Supervised",   acc:0.753,prec:0.456,rec:0.665,f1:0.541,auc:0.838,best:true, note:"★ Оңтайлы Recall/Precision теңгерімі. Өндірістік ортаға ұсынылады."},
+  {id:"hybrid", name:"Hybrid (RF+Rules+IF)",          cat:"Hybrid",       acc:0.857,prec:0.903,rec:0.385,f1:0.540,auc:0.766,best:false,note:"Жоғары Accuracy/Precision, Recall төмен — екінші деңгей сүзгісі"},
+];
+
+const AUDIT=[
+  {cat:"Желілік қауіпсіздік",name:"OT/IT желілерінің арасындағы брандмауэр",std:"IEC 62443 SR 5.1",status:"done",desc:"OT және IT желілерінің арасында брандмауэр орнатылған",risk:null},
+  {cat:"Желілік қауіпсіздік",name:"SCADA мен корп. желі арасындағы DMZ",std:"IEC 62443 SL 3",status:"partial",desc:"VLAN сегментациясы бар, бірақ терең пакет сүзгісі жоқ",risk:"Шабуылдың желіде таралу қаупі"},
+  {cat:"Желілік қауіпсіздік",name:"Modbus/DNP3 протоколдарын қорғау",std:"IEC 62443 SR 3.1",status:"fail",desc:"Өнеркәсіптік протоколдар шифрсыз жіберіледі",risk:"Критикалық: R=9–16, replay/MITM мүмкін"},
+  {cat:"Қол жеткізуді басқару",name:"Рөлдік қол жеткізу моделі RBAC",std:"ISO 27001 A.9.1",status:"done",desc:"SCADA операторлары мен әкімшілер үшін RBAC енгізілген",risk:null},
+  {cat:"Қол жеткізуді басқару",name:"PLC/RTU стандартты паролін ауыстыру",std:"IEC 62443 SR 1.1",status:"done",desc:"Барлық контроллерлердегі стандартты парольдер ауыстырылды",risk:null},
+  {cat:"Қол жеткізуді басқару",name:"Көп факторлы аутентификация MFA",std:"NIST SP 800-82 Rev.3",status:"fail",desc:"SCADA операторлары үшін MFA енгізілмеген",risk:"Рұқсатсыз кіру тәуекелі R=9"},
+  {cat:"Мониторинг және анықтау",name:"OT-трафигіне арналған IDS жүйесі",std:"IEC 62443 SR 6.2",status:"partial",desc:"Сигнатуралық IDS бар, ML-компоненті жоқ",risk:"Жаңа шабуылдар анықталмайды"},
+  {cat:"Мониторинг және анықтау",name:"ML-аномалия детекторы (RF bs+tuned)",std:"NIST CSF DE.AE-1",status:"fail",desc:"Ұсынылған модель: F1=0.541, AUC=0.838",risk:"Күрделі шабуылдар жіберіледі"},
+  {cat:"Мониторинг және анықтау",name:"SCADA оқиғаларын тіркеу (SIEM)",std:"ISO 27001 A.12.4",status:"done",desc:"SIEM жүйесі SCADA серверлерімен біріктірілген",risk:null},
+  {cat:"Физикалық қорғаныс",name:"PLC/RTU физикалық қол жеткізу бақылауы",std:"ISO 27001 A.11.1",status:"done",desc:"Далалық деңгей үшін физикалық қауіпсіздік аймақтары бар",risk:null},
+  {cat:"Физикалық қорғаныс",name:"Деректерді берудегі шифрлама",std:"ISO 27001 A.10.1",status:"done",desc:"Корпоративтік деңгей үшін VPN/TLS; OT деңгейінде жартылай",risk:null},
+  {cat:"Төзімділік",name:"Байланыс арналарын резервтеу",std:"IEC 62443 SR 7.1",status:"partial",desc:"Резервтік арна бар, автоматты ауысу жоқ",risk:"Байланыстың бір сәтсіздік нүктесі"},
+  {cat:"Төзімділік",name:"ИҚ бойынша қызметкерлерді оқыту",std:"ISO 27001 A.7.2.2",status:"partial",desc:"Тұрақты емес оқыту — адам факторы жойылмаған",risk:"Фишинг және әлеуметтік инженерия тиімді"},
+  {cat:"Төзімділік",name:"Инциденттерге жауап беру жоспары (IR Plan)",std:"IEC 62443 SR 6.1",status:"fail",desc:"Ресімделген IR Plan жасалмаған",risk:"Хаотикалық жауап, залалдың еселенуі"},
+  {cat:"Төзімділік",name:"PLC firmware патч-менеджменті",std:"IEC 62443 SR 7.6",status:"fail",desc:"Legacy жабдық үшін патч-менеджмент жүйеленбеген",risk:"Критикалық CVE-лер ашық қалады"},
+];
+
+/* ════════════════════════════════════════════════════════════════════════════
+   СЫНАҚ СЦЕНАРИЙЛЕРІ (автоматты режим)
+═══════════════════════════════════════════════════════════════════════════ */
+const SCENARIOS=[
+  {name:"Қалыпты жұмыс режимі #1",desc:"Таңертеңгі смена · Компрессор станциясы",data:{pressure_bar:61.2,flow_rate_m3h:795,temperature_c:16.3,valve_position_pct:51,rpm_compressor:1510,pkt_size_bytes:130,pkt_rate_pps:9.5,inter_arrival_ms:48,payload_entropy:4.1,tcp_flags_numeric:16,modbus_func_code:3,dnp3_app_ctrl:32,opc_tag_count:4,cmd_response_delta_ms:5.2,reg_write_freq:0.05,hour_of_day:10,src_ip_internal:1,dst_port_industrial:1,session_duration_s:125,failed_auth_count:0}},
+  {name:"Қалыпты жұмыс режимі #2",desc:"Кешкі смена · Тарату торабы",data:{pressure_bar:59.8,flow_rate_m3h:810,temperature_c:15.8,valve_position_pct:49.5,rpm_compressor:1490,pkt_size_bytes:128,pkt_rate_pps:8.8,inter_arrival_ms:52,payload_entropy:3.9,tcp_flags_numeric:16,modbus_func_code:4,dnp3_app_ctrl:30,opc_tag_count:5,cmd_response_delta_ms:4.8,reg_write_freq:0.04,hour_of_day:20,src_ip_internal:1,dst_port_industrial:1,session_duration_s:118,failed_auth_count:0}},
+  {name:"PLC жалған командалар (R=16)",desc:"Command Injection · ӨТЕ ЖОҒАРЫ тәуекел",data:{pressure_bar:55,flow_rate_m3h:800,temperature_c:16,valve_position_pct:3,rpm_compressor:2150,pkt_size_bytes:130,pkt_rate_pps:9.5,inter_arrival_ms:48,payload_entropy:4.1,tcp_flags_numeric:16,modbus_func_code:15,dnp3_app_ctrl:32,opc_tag_count:4,cmd_response_delta_ms:0.3,reg_write_freq:1.85,hour_of_day:3,src_ip_internal:0,dst_port_industrial:1,session_duration_s:8,failed_auth_count:0}},
+  {name:"Прошивка алмастыру (R=12)",desc:"Firmware Tampering · Жоғары тәуекел",data:{pressure_bar:61,flow_rate_m3h:820,temperature_c:16.3,valve_position_pct:51,rpm_compressor:1510,pkt_size_bytes:900,pkt_rate_pps:95,inter_arrival_ms:8,payload_entropy:7.8,tcp_flags_numeric:16,modbus_func_code:3,dnp3_app_ctrl:32,opc_tag_count:4,cmd_response_delta_ms:5,reg_write_freq:0.05,hour_of_day:2,src_ip_internal:0,dst_port_industrial:1,session_duration_s:850,failed_auth_count:1}},
+  {name:"Replay / Spoofing шабуылы (R=9)",desc:"Modbus/DNP3 Replay · Жоғары тәуекел",data:{pressure_bar:61,flow_rate_m3h:795,temperature_c:16,valve_position_pct:51,rpm_compressor:1510,pkt_size_bytes:130,pkt_rate_pps:9.5,inter_arrival_ms:190,payload_entropy:7.2,tcp_flags_numeric:9,modbus_func_code:3,dnp3_app_ctrl:195,opc_tag_count:4,cmd_response_delta_ms:0.5,reg_write_freq:1.1,hour_of_day:15,src_ip_internal:0,dst_port_industrial:1,session_duration_s:120,failed_auth_count:0}},
+  {name:"MITM деректерді бұрмалау (R=9)",desc:"Телеметрия фальсификациясы · Жоғары тәуекел",data:{pressure_bar:40,flow_rate_m3h:400,temperature_c:16,valve_position_pct:52,rpm_compressor:1500,pkt_size_bytes:1200,pkt_rate_pps:95,inter_arrival_ms:8,payload_entropy:7.8,tcp_flags_numeric:16,modbus_func_code:3,dnp3_app_ctrl:32,opc_tag_count:4,cmd_response_delta_ms:5,reg_write_freq:0.05,hour_of_day:11,src_ip_internal:1,dst_port_industrial:1,session_duration_s:900,failed_auth_count:0}},
+  {name:"DoS/DDoS шабуылы (R=6)",desc:"Диспетчерлік сегментке шабуыл · Орташа тәуекел",data:{pressure_bar:61,flow_rate_m3h:795,temperature_c:16,valve_position_pct:51,rpm_compressor:1505,pkt_size_bytes:42,pkt_rate_pps:2200,inter_arrival_ms:0.08,payload_entropy:3.8,tcp_flags_numeric:1,modbus_func_code:3,dnp3_app_ctrl:32,opc_tag_count:4,cmd_response_delta_ms:5,reg_write_freq:0.05,hour_of_day:3,src_ip_internal:0,dst_port_industrial:0,session_duration_s:3,failed_auth_count:3}},
+  {name:"Деректерді тыңдау (R=8)",desc:"Eavesdropping / Reconnaissance · Орташа тәуекел",data:{pressure_bar:60.5,flow_rate_m3h:800,temperature_c:16.2,valve_position_pct:50.5,rpm_compressor:1502,pkt_size_bytes:128,pkt_rate_pps:420,inter_arrival_ms:0.4,payload_entropy:5.8,tcp_flags_numeric:16,modbus_func_code:4,dnp3_app_ctrl:31,opc_tag_count:5,cmd_response_delta_ms:4.8,reg_write_freq:0.06,hour_of_day:23,src_ip_internal:0,dst_port_industrial:0,session_duration_s:3.5,failed_auth_count:0}},
+];
+
+/* ════════════════════════════════════════════════════════════════════════════
+   ML БАЛЛ ЕСЕПТЕУ (RF balanced_subsample + tuned threshold имитациясы)
+   Threshold = 0.38
+═══════════════════════════════════════════════════════════════════════════ */
+const THRESHOLD = 0.38;
+
+function mlScore(s){
+  let sc=0;
+  const f=k=>+(s[k]||0);
+  const norm=[1,2,3,4,5,6,16];
+  if(!norm.includes(Math.round(f('modbus_func_code')))) sc+=0.22;
+  const rw=f('reg_write_freq');
+  if(rw>1.0) sc+=0.20; else if(rw>0.3) sc+=0.10;
+  const cd=f('cmd_response_delta_ms');
+  if(cd<1.0) sc+=0.18; else if(cd>150) sc+=0.07;
+  const pp=f('pkt_rate_pps');
+  if(pp>500) sc+=0.16; else if(pp>150) sc+=0.10; else if(pp>50) sc+=0.05;
+  const ia=f('inter_arrival_ms');
+  if(ia<2) sc+=0.12; else if(ia>150) sc+=0.07;
+  const en=f('payload_entropy');
+  if(en>7.0) sc+=0.14; else if(en>6.0) sc+=0.08; else if(en>5.5) sc+=0.04;
+  const rpm=f('rpm_compressor');
+  if(rpm>2000||rpm<300) sc+=0.10; else if(rpm>1800) sc+=0.04;
+  const vp=f('valve_position_pct');
+  if(vp<5||vp>95) sc+=0.09;
+  if(f('src_ip_internal')===0) sc+=0.08;
+  const fa=f('failed_auth_count');
+  if(fa>0) sc+=Math.min(fa*0.06,0.15);
+  const hr=f('hour_of_day');
+  if(hr>=0&&hr<=4) sc+=0.05;
+  return Math.min(parseFloat(sc.toFixed(4)),1.0);
+}
+
+function scoreToLabel(sc){
+  if(sc>=0.70) return {kk:"Өте жоғары қауіп",cls:"bc",color:"#f87171"};
+  if(sc>=0.50) return {kk:"Жоғары қауіп",cls:"bh",color:"#fbbf24"};
+  if(sc>=0.38) return {kk:"Орташа қауіп",cls:"bm",color:"#60a5fa"};
+  return {kk:"Қалыпты",cls:"bl",color:"#4ade80"};
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CHART HELPERS
+═══════════════════════════════════════════════════════════════════════════ */
+const gc='rgba(255,255,255,.06)',tc='rgba(255,255,255,.38)';
+
+/* ════════════════════════════════════════════════════════════════════════════
+   RENDER FUNCTIONS
+═══════════════════════════════════════════════════════════════════════════ */
+function riskBg(r){return r>=13?'rgba(248,113,113,.14)':r>=9?'rgba(251,191,36,.13)':r>=5?'rgba(96,165,250,.10)':'rgba(74,222,128,.10)'}
+function riskColor(r){return r>=13?'#f87171':r>=9?'#fbbf24':r>=5?'#60a5fa':'#4ade80'}
+function rliBadge(lvl){const m={critical:'<span class="b bc">Өте жоғары</span>',high:'<span class="b bh">Жоғары</span>',medium:'<span class="b bm">Орташа</span>',low:'<span class="b bl">Төмен</span>'};return m[lvl]||''}
+
+function renderDashboard(){
+  document.getElementById('dashMetrics').innerHTML=[
+    {v:'8',l:'Шабуыл сценарийі',s:'1 өте жоғары · 4 жоғары',c:'var(--red)'},
+    {v:'8',l:'Осалдық тобы',s:'Деректер беру арналары',c:'var(--amber)'},
+    {v:'0.541',l:'F1-score (үздік)',s:'RF balanced_sub + tuned',c:'var(--cyan)'},
+    {v:'0.838',l:'ROC-AUC',s:'Бөлу мүмкіндігі',c:'var(--purple)'},
+    {v:'61%',l:'ИҚ сәйкестік',s:'ISO 27001 / IEC 62443',c:'var(--green)'},
+  ].map(m=>`<div class="mc"><div class="mv" style="color:${m.c}">${m.v}</div><div class="ml">${m.l}</div><div class="ms">${m.s}</div></div>`).join('');
+
+  document.getElementById('dashBody').innerHTML=THREATS.slice(0,5).map(t=>`
+    <tr class="sc-row" onclick="toggleDet(event,'ddt-${t.id}')">
+      <td><strong>${t.name}</strong></td>
+      <td style="color:var(--text2);font-size:11px">${t.target}</td>
+      <td class="nc" style="color:var(--cyan)">${t.L}</td>
+      <td class="nc" style="color:var(--amber)">${t.I}</td>
+      <td class="nc" style="font-weight:700;color:${riskColor(t.R)}">${t.R}</td>
+      <td>${rliBadge(t.lvl)}</td>
+    </tr>
+    <tr><td colspan="6" style="padding:0">
+      <div class="det" id="ddt-${t.id}">
+        <strong style="color:var(--text2)">Салдары:</strong> ${t.cons}<br><br>
+        <strong style="color:var(--text2)">Қорғаныс шаралары:</strong>
+        <ul class="mit">${t.mits.map(m=>`<li>${m}</li>`).join('')}</ul>
+      </div>
+    </td></tr>`).join('');
+
+  new Chart(document.getElementById('cRisk'),{type:'doughnut',data:{labels:['Өте жоғары (R=16)','Жоғары (R=9–12)','Орташа (R=6–8)'],datasets:[{data:[1,4,3],backgroundColor:['#f87171','#fbbf24','#60a5fa'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'65%',plugins:{legend:{display:false}}}});
+
+  const bi=7;
+  const f1=[0.271,0.457,0.209,0.374,0.453,0.520,0.537,0.541,0.540];
+  const rc=[0.157,0.296,0.159,0.524,0.968,0.916,0.659,0.665,0.385];
+  new Chart(document.getElementById('cMLd'),{type:'bar',data:{labels:['LR','RF','IF','LR-b','LR-bt','RF-b','RF-bt','RF-bs★','Hybrid'],datasets:[{label:'F1',data:f1,backgroundColor:f1.map((_,i)=>i===bi?'#4ade80':'rgba(74,222,128,.3)'),borderWidth:0},{label:'Recall',data:rc,backgroundColor:rc.map((_,i)=>i===bi?'#fbbf24':'rgba(251,191,36,.3)'),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:1.05,grid:{color:gc},ticks:{color:tc,font:{size:10}}},x:{grid:{display:false},ticks:{color:tc,font:{size:9}}}}}});
+}
+
+function renderRLI(){
+  const cnt={};
+  THREATS.forEach(t=>{const k=`${t.L}-${t.I}`;cnt[k]=(cnt[k]||0)+1;});
+  let h='<div class="rh"></div>'+[1,2,3,4].map(i=>`<div class="rh">I=${i}</div>`).join('');
+  for(let l=4;l>=1;l--){
+    h+=`<div class="rh" style="display:flex;align-items:center;justify-content:center">L=${l}</div>`;
+    for(let i=1;i<=4;i++){
+      const r=l*i,k=`${l}-${i}`,c=cnt[k]||0;
+      h+=`<div class="rc" style="background:${riskBg(r)}"><div style="font-size:14px;font-weight:600;color:${riskColor(r)}">${r}</div>${c?`<div style="font-size:10px;color:${riskColor(r)};opacity:.8">${'●'.repeat(c)}</div>`:''}</div>`;
+    }
+  }
+  document.getElementById('rliGrid').innerHTML=h;
+
+  document.getElementById('rliBody').innerHTML=THREATS.map(t=>`
+    <tr class="sc-row" onclick="toggleDet(event,'rdt-${t.id}')">
+      <td><strong>${t.name}</strong></td>
+      <td style="font-size:11px;color:var(--text2)">${t.target}</td>
+      <td class="nc" style="color:var(--cyan)">${t.L}</td>
+      <td class="nc" style="color:var(--amber)">${t.I}</td>
+      <td class="nc" style="font-weight:700;color:${riskColor(t.R)}">${t.R}</td>
+      <td>${rliBadge(t.lvl)}</td>
+      <td style="font-size:11px;color:var(--text2)">${t.cons.substring(0,65)}…</td>
+    </tr>
+    <tr><td colspan="7" style="padding:0">
+      <div class="det" id="rdt-${t.id}">
+        <strong style="color:var(--text2)">Толық салдар:</strong> ${t.cons}<br><br>
+        <strong style="color:var(--text2)">Қорғаныс шаралары:</strong>
+        <ul class="mit">${t.mits.map(m=>`<li>${m}</li>`).join('')}</ul>
+      </div>
+    </td></tr>`).join('');
+}
+
+function renderVulnerabilities(){
+  const icons=['🔌','🌐','📡','🔑','💻','⚙️','👁️','👤'];
+  document.getElementById('vulnGrid').innerHTML=VULNS.map((v,i)=>`
+    <div class="vc">
+      <div style="font-size:24px">${icons[i]}</div>
+      <div class="vn">${v.name}</div>
+      <div style="margin-bottom:7px">${{Критикалық:'<span class="b bc">Критикалық</span>',Жоғары:'<span class="b bh">Жоғары</span>',Орташа:'<span class="b bm">Орташа</span>'}[v.priority]}</div>
+      <div class="vd">${v.desc}</div>
+      ${v.prots?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:7px">${v.prots.map(p=>`<span class="b" style="background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--text2)">${p}</span>`).join('')}</div>`:''}
+      <div class="vi">→ ${v.impact}</div>
+    </div>`).join('');
+
+  new Chart(document.getElementById('cVuln'),{type:'radar',data:{labels:VULNS.map(v=>v.name.split(' ').slice(0,2).join(' ')),datasets:[{label:'Приоритет',data:VULNS.map(v=>v.ps),backgroundColor:'rgba(34,211,238,.12)',borderColor:'rgba(34,211,238,.7)',pointBackgroundColor:'#22d3ee',pointRadius:4,borderWidth:1.5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{r:{min:0,max:4,ticks:{color:tc,font:{size:10}},grid:{color:gc},pointLabels:{color:'#94a3b8',font:{size:10}}}}}});
+}
+
+function renderArchitecture(){
+  const lvls=[
+    {level:3,name:"Корпоративтік деңгей (ERP / BI / Analytics)",color:"#185FA5",devs:["ERP жүйесі","Аналитикалық платформалар","Деректер қоймасы","Корпоративтік желі"],threats:["Ransomware (R=6)","Деректер ағып кетуі","Сыртқы желіден қауіп"],protocols:["HTTPS/TLS","Corporate VPN","REST API"]},
+    {level:2,name:"Басқару деңгейі (SCADA / ICS / HMI)",color:"#854F0B",devs:["SCADA серверлер","HMI Операторлық станциялар","Өнеркәсіптік коммутаторлар","Историан серверлер"],threats:["HMI-ге рұқсатсыз кіру (R=9)","DoS/DDoS (R=6)","MITM деректер бұрмалауы (R=9)"],protocols:["Modbus/TCP","DNP3/TCP","OPC DA/UA"]},
+    {level:1,name:"Далалық деңгей (PLC / RTU / Датчиктер)",color:"#A32D2D",devs:["PLC контроллерлер","Қысым/температура датчиктері","Арматура / Клапандар","RTU алыс блоктары"],threats:["PLC жалған командалар (R=16)","Прошивка алмастыру (R=12)","Replay/Spoofing (R=9)"],protocols:["Modbus RTU","HART","Profibus DP"]},
+  ];
+  document.getElementById('archLevels').innerHTML=lvls.map((l,idx)=>`
+    ${idx>0?`<div class="aconn"><span></span><small style="color:var(--text3)">${lvls[idx].protocols.slice(0,2).join(' / ')} → Шабуыл векторы</small><span></span></div>`:''}
+    <div class="alv" style="border-color:${l.color}44">
+      <div class="alt" style="color:${l.color}"><span style="background:${l.color}22;padding:3px 8px;border-radius:6px;font-size:11px">L${l.level}</span>${l.name}</div>
+      <div class="adevs">${l.devs.map(d=>`<div class="adev">${d}</div>`).join('')}</div>
+      <div style="font-size:10px;color:var(--text3)">${l.threats.map(t=>`<div style="margin-top:3px">⚠ ${t}</div>`).join('')}</div>
+    </div>`).join('');
+
+  new Chart(document.getElementById('cProto'),{type:'bar',indexAxis:'y',data:{labels:['Modbus RTU','DNP3 (no SA)','OPC DA','IEC 104','Profibus','HART'],datasets:[{label:'Осалдық деңгейі',data:[95,90,70,70,45,40],backgroundColor:['#f87171','#f87171','#fbbf24','#fbbf24','#60a5fa','#60a5fa'],borderWidth:0,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{min:0,max:100,grid:{color:gc},ticks:{color:tc,font:{size:10}}},y:{grid:{display:false},ticks:{color:tc,font:{size:10}}}}}});
+}
+
+function renderML(){
+  const best=ML_MODELS.find(m=>m.best);
+  document.getElementById('mlMetrics').innerHTML=[
+    {v:best.name.split('(')[0].trim(),l:'Үздік модель',s:'Оңтайлы метрика теңгерімі',c:'var(--cyan)'},
+    {v:best.acc.toFixed(3),l:'Accuracy',s:'Дұрыс болжамдар үлесі',c:'var(--text)'},
+    {v:best.rec.toFixed(3),l:'Recall',s:'Анықталған нақты шабуылдар',c:'var(--amber)'},
+    {v:best.f1.toFixed(3),l:'F1-score',s:'Дәлдік пен толықтық теңгерімі',c:'var(--green)'},
+    {v:best.auc.toFixed(3),l:'ROC-AUC',s:'Бөлу мүмкіндігі',c:'var(--purple)'},
+  ].map(m=>`<div class="mc"><div class="mv" style="color:${m.c};font-size:${m.l==='Үздік модель'?'15px':'24px'}">${m.v}</div><div class="ml">${m.l}</div><div class="ms">${m.s}</div></div>`).join('');
+
+  const bi=ML_MODELS.findIndex(m=>m.best);
+  const labels=ML_MODELS.map(m=>m.name.split(' ').slice(0,3).join(' '));
+  const f1=ML_MODELS.map(m=>m.f1);
+  const rc=ML_MODELS.map(m=>m.rec);
+  const auc=ML_MODELS.map(m=>m.auc);
+  new Chart(document.getElementById('cMLComp'),{type:'bar',data:{labels,datasets:[{label:'Recall',data:rc,backgroundColor:rc.map((_,i)=>i===bi?'#fbbf24':'rgba(251,191,36,.3)'),borderWidth:0,order:2},{label:'F1-score',data:f1,backgroundColor:f1.map((_,i)=>i===bi?'#4ade80':'rgba(74,222,128,.3)'),borderWidth:0,order:2},{label:'ROC-AUC',data:auc,type:'line',borderColor:'#a78bfa',backgroundColor:'transparent',pointBackgroundColor:auc.map((_,i)=>i===bi?'#a78bfa':'rgba(167,139,250,.5)'),pointRadius:5,tension:.35,spanGaps:true,order:1}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{min:0,max:1.05,grid:{color:gc},ticks:{color:tc,font:{size:10}}},x:{grid:{display:false},ticks:{color:tc,font:{size:9},maxRotation:45}}}}});
+
+  document.getElementById('mlBody').innerHTML=ML_MODELS.map(m=>`
+    <tr class="${m.best?'row-best':''}">
+      <td><strong style="${m.best?'color:var(--cyan)':''}">${m.name}</strong>
+        <div style="font-size:10px;color:var(--text3);margin-top:2px">${m.note.substring(0,70)}…</div>
+      </td>
+      <td><span class="b" style="background:rgba(255,255,255,.04);border:1px solid var(--border2);color:var(--text2)">${m.cat}</span></td>
+      <td class="nc">${m.acc.toFixed(3)}</td>
+      <td class="nc">${m.prec.toFixed(3)}</td>
+      <td class="nc" style="color:${m.rec>0.6?'var(--amber)':'var(--text)'}">${m.rec.toFixed(3)}</td>
+      <td class="nc" style="color:${m.best?'var(--green)':'var(--text)'}">${m.f1.toFixed(3)}</td>
+      <td class="nc">${m.auc?m.auc.toFixed(3):'—'}</td>
+    </tr>`).join('');
+
+  // Populate auto scenario table
+  document.getElementById('autoBody').innerHTML=SCENARIOS.map((sc,idx)=>`
+    <tr>
+      <td class="nc" style="color:var(--text3)">${idx+1}</td>
+      <td><strong>${sc.name}</strong></td>
+      <td style="font-size:11px;color:var(--text2)">${sc.desc}</td>
+      <td class="nc" style="font-family:var(--fm)">${sc.data.pressure_bar}</td>
+      <td class="nc" style="font-family:var(--fm)">${sc.data.modbus_func_code}</td>
+      <td class="nc" style="font-family:var(--fm)">${sc.data.reg_write_freq}</td>
+      <td id="sr-risk-${idx}" style="min-width:120px">—</td>
+      <td id="sr-res-${idx}">—</td>
+    </tr>`).join('');
+}
+
+function renderAudit(){
+  const done=AUDIT.filter(a=>a.status==='done').length;
+  const part=AUDIT.filter(a=>a.status==='partial').length;
+  const fail=AUDIT.filter(a=>a.status==='fail').length;
+  const score=Math.round((done+part*0.5)/AUDIT.length*100);
+  document.getElementById('auditMetrics').innerHTML=[
+    {v:score+'%',l:'Жалпы балл',s:'Жақсарту қажет',c:'var(--green)'},
+    {v:done,l:'✓ Орындалды',s:'Шара жүзеге асырылды',c:'var(--green)'},
+    {v:part,l:'~ Ішінара',s:'Жетілдіруді қажет етеді',c:'var(--amber)'},
+    {v:fail,l:'✗ Орындалмады',s:'Критикалық олқылықтар',c:'var(--red)'},
+  ].map(m=>`<div class="mc"><div class="mv" style="color:${m.c}">${m.v}</div><div class="ml">${m.l}</div><div class="ms">${m.s}</div></div>`).join('');
+  setTimeout(()=>document.getElementById('auditProg').style.width=score+'%',100);
+  const cats={};
+  AUDIT.forEach(a=>{if(!cats[a.cat])cats[a.cat]=[];cats[a.cat].push(a);});
+  document.getElementById('auditSections').innerHTML=Object.entries(cats).map(([cat,items])=>`
+    <div class="card">
+      <div class="ctitle">${cat}</div>
+      ${items.map(it=>`<div class="ai">
+        <div class="ado ${it.status}">${{done:'✓',partial:'~',fail:'✗'}[it.status]}</div>
+        <div style="flex:1">
+          <div class="an">${it.name}</div>
+          <div class="ad">${it.desc}</div>
+          ${it.risk?`<div class="ar">⚠ ${it.risk}</div>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <span class="b b${it.status==='done'?'d':it.status==='partial'?'p':'f'}">${{done:'Орындалды',partial:'Ішінара',fail:'Орындалмады'}[it.status]}</span>
+          <div class="ast">${it.std}</div>
+        </div>
+      </div>`).join('')}
+    </div>`).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   AUTO ANALYSIS
+═══════════════════════════════════════════════════════════════════════════ */
+function runAutoAnalysis(){
+  SCENARIOS.forEach((sc,idx)=>{
+    setTimeout(()=>{
+      const score=mlScore(sc.data);
+      const pred=score>=THRESHOLD?1:0;
+      const lbl=scoreToLabel(score);
+      const pct=Math.round(score*100);
+      document.getElementById(`sr-risk-${idx}`).innerHTML=`
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="risk-bar-wrap"><div class="risk-bar-fill" style="width:${pct}%;background:${lbl.color}"></div></div>
+          <span style="font-family:var(--fm);font-size:11px;color:${lbl.color}">${pct}%</span>
+        </div>`;
+      document.getElementById(`sr-res-${idx}`).innerHTML=pred===1
+        ?`<span class="b bc">🚨 Шабуыл</span>`
+        :`<span class="b bl">✅ Қалыпты</span>`;
+    },idx*120);
+  });
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MANUAL CSV UPLOAD
+═══════════════════════════════════════════════════════════════════════════ */
+const COLS=['pressure_bar','flow_rate_m3h','temperature_c','valve_position_pct','rpm_compressor','pkt_size_bytes','pkt_rate_pps','inter_arrival_ms','payload_entropy','tcp_flags_numeric','modbus_func_code','dnp3_app_ctrl','opc_tag_count','cmd_response_delta_ms','reg_write_freq','hour_of_day','src_ip_internal','dst_port_industrial','session_duration_s','failed_auth_count'];
+
+function handleDrop(e){e.preventDefault();document.getElementById('uploadZone').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)handleFile(f);}
+function handleFile(file){
+  if(!file||!file.name.endsWith('.csv')){alert('Тек .csv файлдары қабылданады');return;}
+  const reader=new FileReader();
+  reader.onload=e=>parseAndAnalyze(e.target.result);
+  reader.readAsText(file);
+}
+
+function parseAndAnalyze(text){
+  const rows=text.trim().split('\n').map(r=>r.split(',').map(c=>c.trim()));
+  if(rows.length<2){alert('CSV файлы бос немесе форматы дұрыс емес');return;}
+  const header=rows[0].map(h=>h.toLowerCase().replace(/\s/g,'_'));
+  const dataRows=rows.slice(1).filter(r=>r.length>=10);
+  if(dataRows.length===0){alert('Деректер табылмады');return;}
+
+  document.getElementById('uploadZone').style.display='none';
+  const prog=document.getElementById('analyzeProgress');
+  const bar=document.getElementById('progBar');
+  const label=document.getElementById('progLabel');
+  prog.style.display='block';
+
+  let i=0;const results=[];
+  const total=dataRows.length;
+  const timer=setInterval(()=>{
+    if(i>=total){
+      clearInterval(timer);
+      prog.style.display='none';
+      showManualResults(results);
+      return;
+    }
+    const pct=Math.round((i+1)/total*100);
+    bar.style.width=pct+'%';
+    label.textContent=`Талдануда: ${i+1} / ${total} жол (${pct}%)`;
+    const row=dataRows[i];
+    const sample={};
+    header.forEach((h,j)=>{if(COLS.includes(h))sample[h]=parseFloat(row[j])||0;});
+    COLS.forEach(c=>{if(!(c in sample))sample[c]=0;});
+    const sc=mlScore(sample);
+    results.push({idx:i+1,score:sc,pred:sc>=THRESHOLD?1:0,sample});
+    i++;
+  },30);
+}
+
+function showManualResults(results){
+  const attacks=results.filter(r=>r.pred===1).length;
+  const normals=results.length-attacks;
+  const avgScore=(results.reduce((s,r)=>s+r.score,0)/results.length*100).toFixed(1);
+
+  document.getElementById('resSummary').innerHTML=[
+    {v:results.length,l:'Жалпы жол',c:'var(--text)'},
+    {v:attacks,l:'🚨 Шабуыл',c:'var(--red)'},
+    {v:normals,l:'✅ Қалыпты',c:'var(--green)'},
+    {v:avgScore+'%',l:'Орт. тәуекел',c:'var(--amber)'},
+  ].map(m=>`<div class="rs"><div class="rsv" style="color:${m.c}">${m.v}</div><div class="rsl">${m.l}</div></div>`).join('');
+
+  document.getElementById('resSubtitle').textContent=`${results.length} жол талданды · ${attacks} шабуыл анықталды · Шек: ${THRESHOLD}`;
+
+  document.getElementById('manualBody').innerHTML=results.map(r=>{
+    const lbl=scoreToLabel(r.score);
+    const pct=Math.round(r.score*100);
+    const s=r.sample;
+    return`<tr class="${r.pred===1?'row-attack':''}">
+      <td class="nc" style="color:var(--text3)">${r.idx}</td>
+      <td>${r.pred===1?'<span class="b bc">🚨 Шабуыл</span>':'<span class="b bl">✅ Қалыпты</span>'}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="risk-bar-wrap"><div class="risk-bar-fill" style="width:${pct}%;background:${lbl.color}"></div></div>
+          <span style="font-family:var(--fm);font-size:11px;color:${lbl.color}">${pct}%</span>
+        </div>
+      </td>
+      <td><span class="b ${lbl.cls}">${lbl.kk}</span></td>
+      <td class="nc" style="font-family:var(--fm);color:${[1,2,3,4,5,6,16].includes(Math.round(+s.modbus_func_code))?'var(--text)':'var(--red)'}">${(+s.modbus_func_code).toFixed(0)}</td>
+      <td class="nc" style="font-family:var(--fm);color:${+s.pkt_rate_pps>150?'var(--amber)':'var(--text)'}">${(+s.pkt_rate_pps).toFixed(0)}</td>
+      <td class="nc" style="font-family:var(--fm);color:${+s.reg_write_freq>0.3?'var(--amber)':'var(--text)'}">${(+s.reg_write_freq).toFixed(2)}</td>
+      <td class="nc" style="font-family:var(--fm);color:${+s.src_ip_internal===0?'var(--red)':'var(--green)'}">${+s.src_ip_internal===0?'Сыртқы':'Ішкі'}</td>
+      <td class="nc" style="font-family:var(--fm);color:${+s.failed_auth_count>0?'var(--red)':'var(--text)'}">${(+s.failed_auth_count).toFixed(0)}</td>
+    </tr>`;}).join('');
+
+  document.getElementById('manualResult').style.display='block';
+}
+
+function clearResults(){
+  document.getElementById('manualResult').style.display='none';
+  document.getElementById('uploadZone').style.display='block';
+  document.getElementById('fileInput').value='';
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CSV TEMPLATE DOWNLOAD
+═══════════════════════════════════════════════════════════════════════════ */
+function downloadTemplate(){
+  const header=COLS.join(',')+'\n';
+  const rows=[
+    '61.2,795.0,16.3,51.0,1510.0,130.0,9.5,48.0,4.1,16,3,32,4,5.2,0.05,10,1,1,125.0,0',
+    '59.8,810.0,15.8,49.5,1490.0,128.0,8.8,52.0,3.9,16,4,30,5,4.8,0.04,9,1,1,118.0,0',
+    '62.1,788.0,17.1,52.3,1525.0,132.0,10.2,45.0,4.3,16,3,33,4,5.5,0.06,11,1,1,130.0,0',
+    '60.5,802.0,16.0,50.1,1505.0,129.0,9.1,50.0,4.0,16,6,31,5,5.0,0.05,14,1,1,122.0,0',
+    '61.8,793.0,15.5,51.8,1518.0,131.0,9.8,47.0,4.2,16,3,32,4,5.3,0.05,8,1,1,127.0,0',
+    '58.9,820.0,17.5,48.2,1480.0,126.0,8.5,55.0,3.8,16,4,29,6,4.6,0.04,13,1,1,115.0,0',
+    '63.0,780.0,14.9,53.0,1540.0,134.0,10.5,43.0,4.4,16,3,34,4,5.7,0.06,16,1,1,133.0,0',
+    '60.2,808.0,16.7,49.8,1498.0,128.0,9.3,49.0,4.1,16,6,31,5,5.1,0.05,7,1,1,120.0,0',
+    '55.0,800.0,16.0,3.0,2150.0,130.0,9.5,48.0,4.1,16,15,32,4,0.3,1.85,3,0,1,8.0,0',
+    '48.0,795.0,15.8,2.5,2300.0,130.0,9.8,47.0,4.2,16,22,35,4,0.2,2.10,1,0,1,6.0,0',
+    '57.0,790.0,16.5,95.0,2100.0,135.0,11.0,46.0,4.5,16,15,38,4,0.4,1.60,4,0,1,10.0,0',
+    '61.0,795.0,16.3,50.0,1510.0,130.0,1800.0,0.1,4.1,16,3,32,4,5.2,0.05,2,0,0,5.0,2',
+    '61.0,795.0,16.3,50.0,1505.0,42.0,2200.0,0.08,3.8,1,3,32,4,5.0,0.05,3,0,0,3.0,3',
+    '40.0,400.0,16.0,52.0,1500.0,1200.0,95.0,8.0,7.8,16,3,32,4,5.0,0.05,11,1,1,900.0,0',
+    '35.0,380.0,15.5,51.0,1498.0,1450.0,180.0,5.5,7.9,16,3,30,4,5.2,0.05,2,0,1,850.0,1',
+    '61.0,795.0,16.3,51.0,1510.0,130.0,9.5,200.0,7.5,1,3,200,4,0.4,1.2,14,1,1,125.0,0',
+    '60.5,800.0,16.2,50.5,1505.0,128.0,9.2,190.0,7.2,9,3,195,4,0.5,1.1,15,0,1,120.0,0',
+    '61.5,795.0,16.0,51.5,1510.0,1480.0,85.0,11.0,7.95,16,3,32,4,5.2,0.05,10,0,1,20.0,5',
+    '60.8,800.0,16.3,50.8,1502.0,1490.0,92.0,10.5,7.88,16,6,30,5,5.0,0.05,11,0,1,18.0,4',
+    '61.0,798.0,16.1,51.0,1508.0,130.0,10.0,48.0,4.1,16,3,32,4,5.1,0.05,9,1,1,124.0,0',
+    '59.9,812.0,15.9,49.2,1488.0,127.0,8.9,51.0,3.9,16,4,30,5,4.7,0.04,17,1,1,116.0,0',
+    '62.8,782.0,14.8,53.5,1545.0,135.0,10.8,42.0,4.5,16,3,34,4,5.8,0.06,6,1,1,134.0,0',
+    '58.5,825.0,17.8,47.5,1475.0,125.0,8.2,57.0,3.7,16,4,29,6,4.4,0.03,18,1,1,113.0,0',
+    '59.8,790.0,15.8,52.0,1480.0,132.0,350.0,0.5,5.5,16,3,32,4,5.0,0.05,0,0,0,4.0,0',
+    '60.2,805.0,16.5,49.5,1495.0,130.0,420.0,0.4,5.8,16,4,31,5,4.8,0.06,23,0,0,3.5,0',
+    '61.5,798.0,16.3,51.2,1512.0,130.0,9.6,47.5,4.2,16,3,32,4,5.2,0.05,15,1,1,126.0,0',
+    '60.8,805.0,16.4,50.5,1502.0,129.0,9.2,50.5,4.0,16,3,31,5,5.0,0.05,12,1,1,121.0,0',
+    '62.5,785.0,15.2,52.0,1530.0,132.0,10.0,44.5,4.3,16,6,33,4,5.4,0.06,9,1,1,129.0,0',
+    '61.5,795.0,16.0,51.5,1510.0,1480.0,85.0,11.0,7.95,16,15,32,4,0.3,1.8,4,0,1,12.0,3',
+    '60.3,807.0,16.6,50.3,1500.0,128.0,9.0,50.8,4.0,16,6,31,5,5.0,0.05,20,1,1,119.0,0',
+  ].join('\n');
+  const blob=new Blob([header+rows],{type:'text/csv'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='test_samples.csv';
+  a.click();
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+   NAVIGATION & UTILITIES
+═══════════════════════════════════════════════════════════════════════════ */
+function sw(btn,name){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.ni').forEach(b=>b.classList.remove('active'));
+  document.getElementById('view-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+function setMode(name,btn){
+  document.querySelectorAll('.mview').forEach(v=>v.classList.remove('active'));
+  document.querySelectorAll('.mtab').forEach(b=>b.classList.remove('active'));
+  document.getElementById('mode-'+name).classList.add('active');
+  btn.classList.add('active');
+}
+function toggleDet(e,id){const el=document.getElementById(id);if(el)el.classList.toggle('open');}
+function updateClock(){document.getElementById('clock').textContent=new Date().toLocaleTimeString('kk-KZ');}
+setInterval(updateClock,1000);updateClock();
+
+/* ════════════════════════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════════════════════ */
+window.addEventListener('load',()=>{
+  renderDashboard();
+  renderRLI();
+  renderVulnerabilities();
+  renderArchitecture();
+  renderML();
+  renderAudit();
+  const loader=document.getElementById('loader');
+  loader.style.opacity='0';
+  setTimeout(()=>loader.style.display='none',400);
+});
+</script>
+<script>
+// ═══════════════════════════════════════════
+// API CONFIGURATION - Railway URL
+// ═══════════════════════════════════════════
+window.RAILWAY_API = 'https://scada-security-production.up.railway.app/api';
+window.LOCAL_API   = 'http://localhost:8000/api';
+window.API_BASE    = (window.location.hostname === 'localhost' || 
+                      window.location.hostname === '127.0.0.1')
+                    ? window.LOCAL_API 
+                    : window.RAILWAY_API;
+</script>
+</body>
+</html>
