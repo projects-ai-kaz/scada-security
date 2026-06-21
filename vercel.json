@@ -1,17 +1,9 @@
-cat > vercel.json << 'EOF'
 {
   "version": 2,
   "builds": [
-    {
-      "src": "frontend/index.html",
-      "use": "@vercel/static"
-    }
+    { "src": "frontend/index.html", "use": "@vercel/static" }
   ],
   "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "frontend/index.html"
-    }
+    { "src": "/(.*)", "dest": "/frontend/index.html" }
   ]
 }
-EOF
